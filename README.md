@@ -68,6 +68,7 @@ VISUALIZATION_API_KEY=your-key
 | `VISUALIZATION_MODEL` | 可视化默认模型；切换为同一接口支持的其他模型时，修改此项并重启后端 |
 | `VISUALIZATION_BASE_URL` | OpenAI 兼容接口地址，填写到 `/v1`，不含 `/chat/completions` |
 | `VISUALIZATION_API_KEY` | 对应接口的 Key，仅后端读取，不返回浏览器 |
+| `VISUALIZATION_REASONING_EFFORT` | 可选思考强度：`low` / `medium` / `high`，以 `reasoning_effort` 发送；不填则不发送，仅用于支持该参数的模型 |
 
 通用配置优先于原有智谱配置。设置通用接口地址或 Key 时，必须同时填写以上三项；配置不完整会提示错误。修改模型不会自动覆盖已有图表，已有结果可点击「重新生成」以使用新模型。
 
