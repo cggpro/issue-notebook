@@ -34,7 +34,7 @@ try {
     ? [`  本机访问 → http://127.0.0.1:${port}`, ...addresses.map(address => `  局域网访问 → http://${address}:${port}`)]
     : [`  访问地址 → http://${host}:${port}`];
   console.log(`\n  问题簿已启动\n${links.join('\n')}\n  数据目录 → ${process.env.DATA_DIR || path.join(root, 'data')}\n`);
-  if (visualization.config) console.log(`  可视化模型 → ${visualization.config.model}（${visualization.config.baseUrl}）\n`);
+  if (visualization.config) console.log(`  可视化模型 → ${visualization.config.model}（${visualization.config.baseUrl}）${visualization.config.reasoningEffort ? `，思考强度 → ${visualization.config.reasoningEffort}` : ''}\n`);
 } catch (err) { app.log.error(err); process.exit(1); }
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.on(signal, async () => { await app.close(); process.exit(0); });

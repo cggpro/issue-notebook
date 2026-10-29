@@ -19,6 +19,7 @@ export interface ZhipuConfig {
   apiKey: string;
   baseUrl: string;
   model: string;
+  reasoningEffort?: 'low' | 'medium' | 'high';
 }
 
 export interface ZhipuConfigResult {
@@ -401,7 +402,8 @@ export function createChatGenerator(config: ZhipuConfig): VisualizationGenerator
               temperature: 0.2,
               max_tokens: MAX_OUTPUT_TOKENS,
               stream: false,
-              ...(isZhipu ? { thinking: { type: 'disabled' } } : {}),
+              ...(config.reasoningEffort ? { reasoning_effort: config.reasoningEffort } : {}),
+              ...(isZhipu ? { thinking: { type: config.reasoningEffort ? 'enabled' : 'disabled' } } : {}),
               response_format: { type: 'json_object' },
             }),
             signal: controller.signal,
