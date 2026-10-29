@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f9f9f9" />
+    <meta name="description" content="问题簿：轻量的问题跟踪工作台，记录问题，理清方案，跟进每一次修复。" />
+    <script>
+      try {
+        const theme = localStorage.getItem('issue-note-theme') === 'dark' ? 'dark' : 'light';
+        document.documentElement.dataset.theme = theme;
+        if (theme === 'dark') document.querySelector('meta[name="theme-color"]').setAttribute('content', '#111111');
+      } catch { document.documentElement.dataset.theme = 'light'; }
+    </script>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>问题簿 · 把问题理清楚</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
