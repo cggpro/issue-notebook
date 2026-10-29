@@ -155,6 +155,13 @@ test('通用可视化配置：中转优先、模型可切换、配置缺失不�
   assert.deepEqual((await loadVisualizationConfig(env)).config, {
     model: 'gemini-3.8-flash', baseUrl: 'https://relay.example/v1', apiKey: 'relay-secret',
   });
+  assert.equal((await loadVisualizationConfig({ ...env, VISUALIZATION_REASONING_EFFORT: 'high' })).config?.reasoningEffort, 'high');
+  assert.equal((await loadVisualizationConfig({ ...env, VISUALIZATION_REASONING_EFFORT: 'medium' })).config?.reasoningEffort, 'medium');
+  assert.equal((await loadVisualizationConfig({ ...env, VISUALIZATION_REASONING_EFFORT: 'low' })).config?.reasoningEffort, 'low');
+  const invalidEffort = await loadVisualizationConfig({ ...env, VISUALIZATION_REASONING_EFFORT: 'invalid' });
+  assert.equal(invalidEffort.config, null);
+  assert.match(invalidEffort.message!, /VISUALIZATION_REASONING_EFFORT/);
+  assert.equal((await loadVisualizationConfig({ ZHIPU_API_KEY: 'legacy', VISUALIZATION_REASONING_EFFORT: 'high' })).config?.reasoningEffort, 'high');
   assert.equal((await loadVisualizationConfig({ ...env, VISUALIZATION_MODEL: 'another-model' })).config?.model, 'another-model');
   const missing = await loadVisualizationConfig({ ...env, VISUALIZATION_API_KEY: '' });
   assert.equal(missing.config, null);
@@ -187,6 +194,11 @@ test('智谱 HTTP：使用纯 JSON 协议，缺失信息强制留空，鉴权失
     assert.equal(captured[0].body.model, 'test-model');
     assert.ok(!('thinking' in captured[0].body), 'OpenAI 兼容中转不发送智谱专用参数');
     assert.equal(captured[0].body.stream, false); assert.deepEqual(captured[0].body.response_format, { type: 'json_object' });
+    assert.ok(!('reasoning_effort' in captured[0].body), '未设置强度时省略该参数');
+    const thinkingGenerator = createZhipuGenerator({ apiKey: 'test-secret', model: 'gemini-3.8-flash', baseUrl: `http://127.0.0.1:${address.port}/v4`, reasoningEffort: 'high' });
+    await thinkingGenerator.generate(issue);
+    assert.equal(captured[1].body.reasoning_effort, 'high');
+    assert.ok(!('thinking' in captured[1].body), '使用 OpenAI 的 reasoning_effort，不发送智谱参数');
     httpStatus = 401;
     await assert.rejects(generator.generate(issue), error => error instanceof VisualizationError && /鉴权失败/.test(error.message) && !error.message.includes('sensitive-upstream-key'));
   } finally { await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve())); }
