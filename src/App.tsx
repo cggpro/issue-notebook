@@ -116,7 +116,59 @@ export default function App() {
   function showList(nextStatus: string) {
     if (navigate(null)) setStatus(nextStatus);
   }
-  const agentGuide = `你可以通过 HTTP API 操作“问题簿”。\n\n服务地址：${window.location.origin}\n${health?.authRequired ? '鉴权：在 Authorization 请求头中使用 Bearer <工作台访问密钥>。请向使用者索取密钥。\n' : ''}\n1. 查询：GET /api/issues?q=关键词&status=待处理\n2. 详情：GET /api/issues/{id}\n3. 创建：POST /api/issues，JSON 至少包含 title\n4. 更新：PATCH /api/issues/{id}，JSON 必须包含最近读取的 version 和要修改的字段\n5. Markdown：GET /api/issues/{id}/markdown\n6. 导入预览：POST /api/issues/import，JSON 为 {"markdown":"...","preview":true}\n7. 导入保存：POST /api/issues/import，JSON 为 {"markdown":"...","expectedVersion":当前版本}\n8. 附件：POST /api/attachments，multipart/form-data，字段 file。返回附件对象后，加入问题的 attachments 数组并保存。\n\n问题类型 type：缺陷 / 需求变更 / 待确认\n状态 status：待处理 / 处理中 / 待验证 / 已关闭\n优先级 priority：普通 / 紧急 / 较低\n文本字段：description、process、expected、actual、rootCause、frontendPlan、backendPlan、verification、notes\n模块：module\n负责人 assignees：["前端"] / ["后端"] / ["前端","后端"]，默认双方负责，至少选择一项。此字段独立于是否需要修改。\n是否修改：frontendRequired、backendRequired（待判断 / 需要 / 不需要）\n处理进度：frontendStatus、backendStatus（未开始 / 处理中 / 已完成）\n\n收到 409 表示版本冲突：先重新读取，合并内容后再更新。收到 428 表示缺少确认版本。创建和更新会自动保留 Git 历史。不要把推测写成已验证根因，不要未经确认关闭问题。`;
+  const agentGuide = `你可以通过 HTTP API 操作“问题簿”。\n\n服务地址：${window.location.origin}\n${health?.authRequired ? '鉴权：在 Authorization 请求头中使用 Bearer <工作台访问密钥>。请向使用者索取密钥。\n' : ''}\n1. 查询：GET /api/issues?q=关键词&status=待处理\n2. 详情：GET /api/issues/{id}\n3. 创建：POST /api/issues，JSON 至少包含 title\n4. 更新：PATCH /api/issues/{id}，JSON 必须包含最近读取的 version 和要修改的字段\n5. Markdown：GET /api/issues/{id}/markdown\n6. 导入预览：POST /api/issues/import，JSON 为 {"markdown":"...","preview":true}\n7. 导入保存：POST /api/issues/import，JSON 为 {"markdown":"...","expectedVersion":当前版本}\n8. 附件：POST /api/attachments，multipart/form-data，字段 file。返回附件对象后，加入问题的 attachments 数组并保存。\n\n问题类型 type：缺陷 / 需求变更 / 待确认\n状态 status：待处理 / 处理中 / 待验证 / 已关闭\n优先级 priority：普通 / 紧急 / 较低\n文本字段：description、process、expected、actual、rootCause、frontendPlan、backendPlan、verification、notes\n模块：module\n负责人 assignees：["前端"] / ["后端"] / ["前端","后端"]，默认双方负责，至少选择一项。此字段独立于是否需要修改。\n是否修改：frontendRequired、backendRequired（待判断 / 需要 / 不需要）\n处理进度：frontendStatus、backendStatus（未开始 / 处理中 / 已完成）\n\n收到 409 表示版本冲突：先重新读取，合并内容后再更新。收到 428 表示缺少确认版本。创建和更新会自动保留 Git 历史。不要把推测写成已验证根因，不要未经确认关闭问题。
+
+## 创建内容规范
+
+目标：每条问题都应能脱离聊天记录独立阅读，让没参与讨论的人知道为什么提出、如何触发、实际怎样、希望怎样。以下规范同时适用于 API 创建和 Markdown 导入创建；接口只要求 title，不代表内容只需标题。
+
+### 1. 背景与字段写法
+- title：用“对象＋触发条件＋现象或目标”概括问题。例如“问题列表：修改状态并保存后，列表仍显示旧状态”，避免只写“状态更新异常”或“优化用户体验”。
+- module：填写已知的所属功能模块，不确定时不要猜测。
+- description：交代相关功能、使用角色、业务场景和操作目的；补充理解这条问题必需的业务规则、对象状态及已知影响。不必介绍整个项目，也不要把“这个页面”“刚才那个问题”等聊天指代直接写进去。
+- process：缺陷写复现步骤，包括操作入口、前提条件、关键数据或状态、操作顺序及触发动作；需求写当前业务流程和遇到困难的具体环节。步骤应足以让读者按顺序理解或复现。
+- actual：写当前可观察的行为、报错、结果或现有做法的具体限制。用户反馈与自己实际验证的结果要区分，未复现不能写成已复现。
+- expected：写希望发生的具体行为和可检查的结果。需求要说明它帮助谁完成什么任务，不能只写“增加一个按钮”。
+- rootCause：区分现象、推测和已验证结论。尚未排查时写“待排查”；有假设时明确标注“推测，待验证”并说明依据，不得当成已验证根因。
+- notes：记录不影响登记、但仍需补充或确认的信息；待确认的问题也可在此注明确认人或角色（如已知）。
+只填写与本条问题有关的内容，不为凑齐字段重复描述，也不编造方案、验证结果或影响范围。
+
+### 2. 按问题类型组织内容
+- 缺陷：讲清什么条件下，执行哪些操作，实际结果与预期哪里不同。
+- 需求变更：讲清谁在什么场景遇到什么困难、目前怎么做、希望改成什么，以及要解决的实际问题。
+- 待确认：讲清已知情况、具体需要确认的业务规则或行为，以及由谁确认（如已知）。尚未明确的规则要标注“待确认”。
+
+### 3. 缺少信息时怎么处理
+- 先从已有聊天、用户提供的材料及已读取的项目信息中提取事实，主动补入正文，不让用户重复提供已知信息。
+- 如果缺失的信息会影响理解、复现或实现，例如操作入口、触发条件、需求目的或预期规则，创建前集中追问这些关键问题，得到答复后再整理提交。
+- 如果缺失的信息不影响登记，可以先创建，在相应字段或 notes 中明确标注“待补充”或“待确认”，写明具体缺什么。
+- 完整不等于编造。不要自行补出用户没提供、也没有证据支持的项目背景、操作步骤、业务规则或根因。
+
+### 4. 表达方式
+使用自然、直接的语言，以具体动作和结果说明问题。保留必要背景，避免空泛评价、口号和重复扩写：
+- “优化状态同步机制，提升用户体验”应写成“保存成功后，列表中的状态应立即更新”。
+- “当前交互逻辑存在不足”应写成“点击保存后弹窗关闭，但列表仍显示修改前的状态”。
+- “完善异常处理能力”应写成“保存失败时保留已填写内容，并显示失败原因”。
+以上是表达示例，不是待创建问题的事实；只有符合当前问题的已知情况时才使用。
+
+假设示例（仅示范写法，不得当作当前项目的实际问题提交）：
+标题：问题列表：修改状态并保存后，列表仍显示旧状态
+背景（description）：处理人员在问题列表中修改问题状态，用于记录处理进度。
+操作过程（process）：打开一条待处理问题，将状态改为“处理中”，点击保存。
+实际结果（actual）：提示保存成功，但列表仍显示“待处理”；手动刷新页面后显示“处理中”。
+预期结果（expected）：保存成功后，列表立即显示“处理中”，无需手动刷新。
+根因（rootCause）：待排查。
+
+## 创建前自检规则
+
+提交创建请求或导入保存前，先自行检查并修正文稿：
+1. 没看过聊天记录的人，能否知道这是哪个功能、谁在什么场景下想完成什么？
+2. 缺陷是否写清入口、必要前提、触发步骤、实际结果和预期差异？需求是否写清当前做法、实际困难和期望改变？待确认项是否提出了明确的问题？
+3. 标题、背景、操作过程和结果是否一致？是否还残留“这个”“上面说的”等需要依赖聊天才能理解的指代？
+4. 是否区分了已知事实、用户反馈、推测和待确认事项？是否把未验证的根因、影响或验证结果写成了事实？
+5. 是否用具体动作和结果替换了空泛措辞，并删掉重复内容？
+6. 缺失信息若影响理解或实施，先集中追问；不影响登记的，标明待补充内容后即可创建。
+自检由 Agent 在提交前完成，不必把检查清单写入问题正文，也不要求用户额外审批已获授权且信息充分的创建操作。`;
 
   return <div className="app-shell">
     <aside className="sidebar">
@@ -151,7 +203,7 @@ export default function App() {
     {importing && <ImportModal onClose={() => setImporting(false)} onImported={issue => { setImporting(false); onSaved(issue); }} notify={notify} />}
     {agent && <Modal title="连接 AI Agent" subtitle="使用 Markdown 交换信息，或让 Agent 直接操作问题。" wide onClose={() => setAgent(false)} footer={<><button className="button" onClick={() => setAgent(false)}>关闭</button><button className="button primary" onClick={() => void copyText(agentGuide).then(() => notify('接入说明已复制，粘贴给 AI Agent 即可')).catch(e => notify(e.message, true))}><Copy size={16} />复制 Agent 接入说明</button></>}>
       <div className="agent-options"><section><span className="agent-option-icon"><FileText size={22} /></span><h3>复制 · 分析 · 回填</h3><p>在问题详情复制 Markdown，交给任意 Agent 分析，再导入它返回的内容。</p><button className="text-button" onClick={() => void api.template().then(copyText).then(() => notify('空白模板已复制')).catch(e => notify(e.message, true))}>复制空白模板 <ArrowUpRight size={14} /></button></section><section><span className="agent-option-icon blue"><Terminal size={22} /></span><h3>通过 API 直接操作</h3><p>让 Agent 查询问题、补充分析、更新方案和状态，修改会自动保留历史。</p><span className="endpoint-label">{window.location.origin}/api</span></section></div>
-      <h3 className="api-heading">API 速查</h3><div className="api-table">{[['GET', '/api/issues', '搜索与筛选问题'], ['POST', '/api/issues', '创建问题'], ['PATCH', '/api/issues/{id}', '更新内容与状态，需传 version'], ['GET', '/api/issues/{id}/markdown', '导出 Markdown'], ['POST', '/api/issues/import', '预览、创建或回填 Markdown']].map(([method, path, purpose]) => <div key={method + path}><code className={`method ${method.toLowerCase()}`}>{method}</code><code>{path}</code><span>{purpose}</span></div>)}</div><p className="api-note">Agent 需要能够访问此地址。复制接入说明后，它会获得字段、状态和版本冲突处理规则。</p>
+      <h3 className="api-heading">API 速查</h3><div className="api-table">{[['GET', '/api/issues', '搜索与筛选问题'], ['POST', '/api/issues', '创建问题'], ['PATCH', '/api/issues/{id}', '更新内容与状态，需传 version'], ['GET', '/api/issues/{id}/markdown', '导出 Markdown'], ['POST', '/api/issues/import', '预览、创建或回填 Markdown']].map(([method, path, purpose]) => <div key={method + path}><code className={`method ${method.toLowerCase()}`}>{method}</code><code>{path}</code><span>{purpose}</span></div>)}</div><p className="api-note">Agent 需要能够访问此地址。复制接入说明后，它会获得字段、状态、版本冲突处理规则，以及创建内容规范和创建前自检规则。</p>
     </Modal>}
     {auth && <Modal title="连接工作台" subtitle="此工作台设置了访问密钥，无需注册账号。" onClose={() => setAuth(false)} footer={<button className="button primary" disabled={!key || authBusy} onClick={async () => { setAuthBusy(true); sessionStorage.setItem('issue-note-key', key); try { await request('/api/session', { method: 'POST', body: '{}' }); setAuth(false); setKey(''); await refresh(true); notify('已连接工作台'); } catch (e) { sessionStorage.removeItem('issue-note-key'); notify((e as Error).message, true); } finally { setAuthBusy(false); } }}>{authBusy ? <Spinner /> : <KeyRound size={16} />}连接</button>}><Field label="访问密钥"><input type="password" autoComplete="current-password" value={key} onChange={e => setKey(e.target.value)} placeholder="输入启动服务时设置的 API_KEY" /></Field></Modal>}
     {toast && <div role={toast.error ? 'alert' : 'status'} className={`toast ${toast.error ? 'error' : ''}`}>{toast.error ? <AlertCircle size={18} /> : <CircleCheck size={18} />}<span>{toast.text}</span><button className="icon-button" aria-label="关闭提示" onClick={() => setToast(undefined)}><X size={15} /></button></div>}
