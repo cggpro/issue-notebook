@@ -10,6 +10,8 @@ const PI_CODING_CN_BASE_URL = 'https://open.bigmodel.cn/api/coding/paas/v4';
 const DEFAULT_MODEL = 'glm-5.3-flash';
 const PI_CODING_CN_MODEL = 'glm-5.3-flash';
 const REQUEST_TIMEOUT_MS = 90_000;
+// Preserve the existing Zhipu API for callers using the legacy configuration.
+export const createZhipuGenerator = createChatGenerator;
 const MAX_OUTPUT_TOKENS = 8000;
 const PROVIDER_ID = 'zai-coding-cn';
 
@@ -17,6 +19,7 @@ export interface ZhipuConfig {
   apiKey: string;
   baseUrl: string;
   model: string;
+  reasoningEffort?: 'low' | 'medium' | 'high';
 }
 
 export interface ZhipuConfigResult {
@@ -362,8 +365,8 @@ function parseModelJson(content: string): unknown {
 }
 
 function friendlyStatus(status: number): string {
-  if (status === 401 || status === 403) return 'AI 服务鉴权失败，请检查 Zhipu API Key 配置。';
-  if (status === 404) return 'AI 模型或接口不存在，请检查 Zhipu 模型配置。';
+  if (status === 401 || status === 403) return 'AI 服务鉴权失败，请检查可视化 API Key 配置。';
+  if (status === 404) return 'AI 模型或接口不存在，请检查可视化模型和接口地址配置。';
   if (status === 429) return 'AI 服务请求过于频繁或额度不足，请稍后重试。';
   return `AI 服务暂时不可用（HTTP ${status}），请稍后重试。`;
 }
@@ -372,9 +375,10 @@ function isTimeout(error: unknown): boolean {
   return error instanceof Error && (error.name === 'AbortError' || error.name === 'TimeoutError');
 }
 
-/** Create a non-streaming Zhipu chat generator with a 90 second hard timeout. */
-export function createZhipuGenerator(config: ZhipuConfig): VisualizationGenerator {
+/** Create a non-streaming OpenAI-compatible chat generator with a 90 second timeout. */
+export function createChatGenerator(config: ZhipuConfig): VisualizationGenerator {
   const endpoint = `${normalizeBaseUrl(config.baseUrl)}/chat/completions`;
+  const isZhipu = new URL(config.baseUrl).hostname === 'open.bigmodel.cn';
   return {
     model: config.model,
     async generate(issue: Issue) {
@@ -398,7 +402,8 @@ export function createZhipuGenerator(config: ZhipuConfig): VisualizationGenerato
               temperature: 0.2,
               max_tokens: MAX_OUTPUT_TOKENS,
               stream: false,
-              thinking: { type: 'disabled' },
+              ...(config.reasoningEffort ? { reasoning_effort: config.reasoningEffort } : {}),
+              ...(isZhipu ? { thinking: { type: config.reasoningEffort ? 'enabled' : 'disabled' } } : {}),
               response_format: { type: 'json_object' },
             }),
             signal: controller.signal,
@@ -412,7 +417,7 @@ export function createZhipuGenerator(config: ZhipuConfig): VisualizationGenerato
           let code = '';
           try { code = String(objectOf(objectOf(await response.json())?.error)?.code ?? ''); }
           catch { /* Do not expose upstream response bodies. */ }
-          if (code === '1311') throw new VisualizationError(502, '当前智谱订阅套餐未开放所选模型权限，请检查 ZHIPU_MODEL 配置。');
+          if (isZhipu && code === '1311') throw new VisualizationError(502, '当前智谱订阅套餐未开放所选模型权限，请检查 VISUALIZATION_MODEL 或 ZHIPU_MODEL 配置。');
           throw new VisualizationError(502, friendlyStatus(response.status));
         }
 

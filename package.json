@@ -1,9 +1,15 @@
 {
-  "name": "issue-note",
+  "name": "issue-notebook",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "轻量的 Markdown 问题工作台",
+  "description": "问题簿：基于 Markdown 与 Git 的轻量问题协作工作台，支持 AI 可视化分析",
+  "license": "MIT",
+  "author": "cggpro",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cggpro/issue-notebook.git"
+  },
   "scripts": {
     "dev": "concurrently -k -n api,web \"tsx watch server/index.ts\" \"vite --host 0.0.0.0\"",
     "build": "tsc --noEmit && vite build",

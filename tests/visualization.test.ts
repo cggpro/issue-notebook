@@ -9,6 +9,7 @@ import { createServer } from 'node:http';
 import { buildApp } from '../server/app.js';
 import { IssueStore } from '../server/store.js';
 import { VisualizationService, VisualizationError, type VisualizationGenerator } from '../server/visualization.js';
+import { loadVisualizationConfig } from '../server/visualization-config.js';
 import { loadZhipuConfig, createZhipuGenerator } from '../server/zhipu.js';
 import type { Issue } from '../shared/model.js';
 import type { VisualizationData } from '../shared/visualization.js';
@@ -143,6 +144,34 @@ test('智谱配置：环境变量优先、Pi 凭据回退、拒绝命令凭据�
   assert.equal(unresolved.config, null); assert.match(unresolved.message!, /MISSING_KEY/);
 }));
 
+test('通用可视化配置：中转优先、模型可切换、配置缺失不混用智谱密钥', async () => {
+  const env = {
+    VISUALIZATION_MODEL: 'gemini-3.8-flash',
+    VISUALIZATION_BASE_URL: 'https://relay.example/v1/',
+    VISUALIZATION_API_KEY: 'relay-secret',
+    ZHIPU_API_KEY: 'zhipu-secret',
+    ZHIPU_MODEL: 'glm-5.3-flash',
+  };
+  assert.deepEqual((await loadVisualizationConfig(env)).config, {
+    model: 'gemini-3.8-flash', baseUrl: 'https://relay.example/v1', apiKey: 'relay-secret',
+  });
+  assert.equal((await loadVisualizationConfig({ ...env, VISUALIZATION_REASONING_EFFORT: 'high' })).config?.reasoningEffort, 'high');
+  assert.equal((await loadVisualizationConfig({ ...env, VISUALIZATION_REASONING_EFFORT: 'medium' })).config?.reasoningEffort, 'medium');
+  assert.equal((await loadVisualizationConfig({ ...env, VISUALIZATION_REASONING_EFFORT: 'low' })).config?.reasoningEffort, 'low');
+  const invalidEffort = await loadVisualizationConfig({ ...env, VISUALIZATION_REASONING_EFFORT: 'invalid' });
+  assert.equal(invalidEffort.config, null);
+  assert.match(invalidEffort.message!, /VISUALIZATION_REASONING_EFFORT/);
+  assert.equal((await loadVisualizationConfig({ ZHIPU_API_KEY: 'legacy', VISUALIZATION_REASONING_EFFORT: 'high' })).config?.reasoningEffort, 'high');
+  assert.equal((await loadVisualizationConfig({ ...env, VISUALIZATION_MODEL: 'another-model' })).config?.model, 'another-model');
+  const missing = await loadVisualizationConfig({ ...env, VISUALIZATION_API_KEY: '' });
+  assert.equal(missing.config, null);
+  assert.match(missing.message!, /VISUALIZATION_API_KEY/);
+  assert.ok(!missing.message!.includes('secret'));
+  assert.equal((await loadVisualizationConfig({ ...env, VISUALIZATION_BASE_URL: 'file:///tmp/relay' })).config, null);
+  assert.equal((await loadVisualizationConfig({ ZHIPU_API_KEY: 'legacy', VISUALIZATION_MODEL: 'glm-custom' })).config?.model, 'glm-custom');
+  assert.equal((await loadVisualizationConfig({ ZHIPU_API_KEY: 'legacy' })).config?.model, 'glm-5.3-flash');
+});
+
 test('智谱 HTTP：使用纯 JSON 协议，缺失信息强制留空，鉴权失败不暴露响应正文', async () => temporary(async dir => {
   const store = new IssueStore(dir); await store.init();
   const issue = await store.create({ title: '只有描述', description: '入库失败', actual: '422' });
@@ -150,6 +179,7 @@ test('智谱 HTTP：使用纯 JSON 协议，缺失信息强制留空，鉴权失
   const server = createServer(async (req, res) => {
     const chunks: Buffer[] = []; for await (const chunk of req) chunks.push(Buffer.from(chunk));
     captured.push({ authorization: req.headers.authorization, body: JSON.parse(Buffer.concat(chunks).toString()) });
+    assert.equal(req.url, '/v4/chat/completions');
     res.writeHead(httpStatus, { 'content-type': 'application/json' });
     const data: VisualizationData = { ...emptyData(), comparison: [{ aspect: '入库', expected: '虚构预期', actual: '422' }], causality: { nodes: [{ id: 'invented', label: '虚构根因', detail: '', kind: 'cause' }], edges: [] }, verification: [{ scenario: '虚构测试', expected: '', result: '通过', status: 'passed', scope: '' }] };
     res.end(httpStatus === 200 ? JSON.stringify({ choices: [{ message: { content: JSON.stringify(data) } }] }) : '{"error":"sensitive-upstream-key"}');
@@ -161,7 +191,14 @@ test('智谱 HTTP：使用纯 JSON 协议，缺失信息强制留空，鉴权失
     const data = await generator.generate(issue);
     assert.deepEqual(data.verification, []); assert.deepEqual(data.causality, { nodes: [], edges: [] }); assert.equal(data.comparison[0].expected, '');
     assert.equal(captured[0].authorization, 'Bearer test-secret');
+    assert.equal(captured[0].body.model, 'test-model');
+    assert.ok(!('thinking' in captured[0].body), 'OpenAI 兼容中转不发送智谱专用参数');
     assert.equal(captured[0].body.stream, false); assert.deepEqual(captured[0].body.response_format, { type: 'json_object' });
+    assert.ok(!('reasoning_effort' in captured[0].body), '未设置强度时省略该参数');
+    const thinkingGenerator = createZhipuGenerator({ apiKey: 'test-secret', model: 'gemini-3.8-flash', baseUrl: `http://127.0.0.1:${address.port}/v4`, reasoningEffort: 'high' });
+    await thinkingGenerator.generate(issue);
+    assert.equal(captured[1].body.reasoning_effort, 'high');
+    assert.ok(!('thinking' in captured[1].body), '使用 OpenAI 的 reasoning_effort，不发送智谱参数');
     httpStatus = 401;
     await assert.rejects(generator.generate(issue), error => error instanceof VisualizationError && /鉴权失败/.test(error.message) && !error.message.includes('sensitive-upstream-key'));
   } finally { await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve())); }

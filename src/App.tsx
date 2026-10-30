@@ -172,7 +172,7 @@ export default function App() {
 
   return <div className="app-shell">
     <aside className="sidebar">
-      <a className="brand" href="/" aria-label="问题簿首页" onClick={event => { if (!event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) { event.preventDefault(); navigate(null); } }}><span className="brand-icon"><BookOpen size={21} strokeWidth={1.7} /></span><span>问题簿<small>ISSUE NOTE</small></span></a>
+      <a className="brand" href="/" aria-label="问题簿首页" onClick={event => { if (!event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) { event.preventDefault(); navigate(null); } }}><span className="brand-icon"><BookOpen size={21} strokeWidth={1.7} /></span><span>问题簿<small>ISSUE NOTEBOOK</small></span></a>
       <div className="workspace-tag"><span className="workspace-avatar">W</span><span>我的工作空间<small>轻量协作 · 保持简单</small></span></div>
       <span className="nav-label">工作台</span>
       <nav className="main-nav" aria-label="问题导航"><button aria-label="全部问题" title="全部问题" className={status === '全部问题' ? 'selected' : ''} onClick={() => showList('全部问题')}><LayoutList size={18} /><span>全部问题</span><small>{issues.length}</small></button><div className="nav-separator" />{issueStatuses.map(s => { const Icon = statusIcons[s]; return <button key={s} aria-label={s} title={s} className={status === s ? 'selected' : ''} onClick={() => showList(s)}><Icon size={18} /><span>{s}</span><small>{counts[s]}</small></button>; })}</nav>

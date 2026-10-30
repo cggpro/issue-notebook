@@ -32,7 +32,7 @@ export class VisualizationError extends HttpError {
   }
 }
 
-const DEFAULT_CONFIGURATION_MESSAGE = '未配置 AI 可视化生成服务。请设置 ZHIPU_API_KEY 环境变量后重启服务。';
+const DEFAULT_CONFIGURATION_MESSAGE = '未配置 AI 可视化生成服务。请设置 VISUALIZATION_MODEL、VISUALIZATION_BASE_URL、VISUALIZATION_API_KEY，或配置 ZHIPU_API_KEY 后重启服务。';
 
 export class VisualizationService {
   private readonly inflight = new Map<string, Promise<VisualizationDocument>>();

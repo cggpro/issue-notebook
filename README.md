@@ -1,14 +1,28 @@
-# 问题簿
+# 问题簿 · issue-notebook
 
 给两人协作使用的轻量问题工作台。记录缺陷和需求变更，补充业务流程、根因、前后端方案，跟进修复和回归。
 
 每个问题保存为一个 Markdown 文件；网页、Markdown 导入和 Agent API 共用保存逻辑。每次有效修改自动生成 Git 提交，可以查看变更、恢复旧版本。
+
+## 界面预览
+
+以下为已打码的界面截图。
+
+### 问题工作台
+
+![问题簿：问题列表与修复进度](docs/images/workspace.png)
+
+### AI 可视化
+
+![问题簿：业务流程可视化](docs/images/visualization.png)
 
 ## 本地运行
 
 需要 **Node.js 22 或更新版本**和 **Git**，并确认两者在 PATH 中。不需要数据库或 Docker。
 
 ```bash
+git clone https://github.com/cggpro/issue-notebook.git
+cd issue-notebook
 npm install
 npm run build
 npm start
@@ -37,19 +51,38 @@ npm run dev
 - **历史**：在“变更记录”中查看每次修改。恢复历史内容会产生一个新版本，保留原有记录。
 - **Agent**：侧栏“连接 AI Agent”提供可复制的接入说明。
 
-## 智谱可视化配置
+## 可视化模型配置
 
-启动时读取项目根目录 `.env`（不覆盖已设置的进程环境变量）。可参考 `.env.example`，将模型设为 `ZHIPU_MODEL=glm-5.3-flash`。
+启动时读取项目根目录 `.env`（不覆盖已设置的进程环境变量）。AI 可视化为可选功能，不配置密钥也能使用问题记录、Markdown 导入导出和 Git 历史。需要 AI 可视化时，复制 `.env.example` 为 `.env`，填写服务商提供的模型、接口地址和密钥。
+
+支持 OpenAI 兼容的 Chat Completions 接口，例如：
+
+```dotenv
+VISUALIZATION_MODEL=your-model-name
+VISUALIZATION_BASE_URL=https://api.example.com/v1
+VISUALIZATION_API_KEY=your-key
+```
+
+| 配置 | 用途 |
+| --- | --- |
+| `VISUALIZATION_MODEL` | 可视化默认模型；切换为同一接口支持的其他模型时，修改此项并重启后端 |
+| `VISUALIZATION_BASE_URL` | OpenAI 兼容接口地址，填写到 `/v1`，不含 `/chat/completions` |
+| `VISUALIZATION_API_KEY` | 对应接口的 Key，仅后端读取，不返回浏览器 |
+| `VISUALIZATION_REASONING_EFFORT` | 可选思考强度：`low` / `medium` / `high`，以 `reasoning_effort` 发送；不填则不发送，仅用于支持该参数的模型 |
+
+通用配置优先于原有智谱配置。设置通用接口地址或 Key 时，必须同时填写以上三项；配置不完整会提示错误。修改模型不会自动覆盖已有图表，已有结果可点击「重新生成」以使用新模型。
+
+继续使用智谱时，删除或注释通用配置，使用以下配置：
 
 | 配置 | 用途 |
 | --- | --- |
 | `ZHIPU_API_KEY` | 智谱 Key，仅后端读取，不返回浏览器 |
 | `ZHIPU_BASE_URL` | 与 Key 配套的接口地址；独立 Key 默认 `https://open.bigmodel.cn/api/paas/v4` |
-| `ZHIPU_MODEL` | 生成模型，默认 `glm-5.3-flash` |
+| `ZHIPU_MODEL` | 生成模型，默认 `glm-5.3-flash`；也可由 `VISUALIZATION_MODEL` 覆盖 |
 
 没有显式设置 Key 时，服务端可读取本机 Pi 的 `zai-coding-cn` 凭据和接口配置；目录取 `PI_CODING_AGENT_DIR`，默认 `~/.pi/agent`。只使用该提供商的配置，命令型凭据不会执行。Coding Plan Key 应配套 `https://open.bigmodel.cn/api/coding/paas/v4`，所选模型需有套餐权限。环境变量和 Pi 配置解析后只保存在服务端内存。
 
-首次生成会把当前问题已保存的文字发送给智谱。图表保存在后端独立 JSON 文件，各浏览器共享；同一问题的并发生成共用一次调用。生成途中正文更新时会丢弃旧结果并按最新版本重试一次；超时、生成失败或格式校验失败时保留上一版。未配置模型不影响查看已有图表或使用原有功能。清理图表文件后，再进入页签会重新生成。
+首次生成会把当前问题已保存的文字发送给所配置的模型服务。图表保存在后端独立 JSON 文件，各浏览器共享；同一问题的并发生成共用一次调用。生成途中正文更新时会丢弃旧结果并按最新版本重试一次；超时、生成失败或格式校验失败时保留上一版。未配置模型不影响查看已有图表或使用原有功能。清理图表文件后，再进入页签会重新生成。
 
 ## 文件存储与备份
 
@@ -72,7 +105,7 @@ Markdown 是正式数据源；列表直接从文件读取，不需要重建数�
 
 ## 局域网共同查看与编辑
 
-在一台电脑运行 `npm start`，其他电脑只需打开启动日志中的“局域网访问”链接，例如 `http://192.168.1.5:3001`。两台电脑应连接到同一局域网，运行服务的电脑需要保持开机并让服务持续运行。
+在一台电脑运行 `npm start`，其他电脑只需打开启动日志中的“局域网访问”链接，例如 `http://192.168.x.x:3001`（请替换为启动日志中的实际地址）。两台电脑应连接到同一局域网，运行服务的电脑需要保持开机并让服务持续运行。
 
 网页与 API 使用同一个地址，附件、Markdown 导入、编辑保存和 Git 历史都可以通过局域网使用。所有电脑操作同一份数据，无需在第二台电脑安装项目。列表定时刷新；两人同时修改同一个问题时，后保存的一方会收到版本冲突提示，草稿会保留。
 
@@ -107,7 +140,7 @@ HOST=0.0.0.0 API_KEY=替换为你自己的随机密钥 npm start
 New-NetFirewallRule -Name "IssueNote-LAN-3001" -DisplayName "Issue Note - LAN (TCP 3001)" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 3001 -Profile Private,Domain -RemoteAddress LocalSubnet
 ```
 
-当前开发电脑已配置这条规则。端口或部署电脑变化后，需要使用对应端口重新配置。局域网 IP 可能随网络变化，使用启动日志中当前显示的地址。
+端口变化时，需要相应调整防火墙规则。局域网 IP 可能随网络变化，使用启动日志中当前显示的地址。
 
 需要跨公网使用时，请在 HTTPS 反向代理后提供服务。字体可选加载 Google Fonts，网络不可用时自动使用本机中文字体，不影响操作。
 
@@ -186,3 +219,9 @@ npm run build
 集成测试使用临时目录和真实 Git 仓库，不会修改日常数据。
 
 技术栈：React + TypeScript + Vite、Fastify、Markdown/YAML、Git。
+
+## 开源许可
+
+本项目采用 [MIT License](LICENSE)，版权归 cggpro。第三方组件的许可声明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+
+源码仓库不包含 `.env`、本地问题 Markdown、附件、生成图表和本地运行产物。`tests/` 中保留的是自动化测试代码；`docs/images/` 仅包含已打码的展示截图。
